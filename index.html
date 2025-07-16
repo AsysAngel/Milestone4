@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Search SPA</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .search-section, .bookshelf-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-box button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-box button:hover {
+            background-color: #0056b3;
+        }
+        .search-box button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .view-toggle {
+            margin-bottom: 20px;
+        }
+        .view-toggle button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .view-toggle button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tabs {
+            margin-bottom: 20px;
+        }
+        .tabs button {
+            padding: 10px 20px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .tabs button.active {
+            border-bottom: 2px solid #007bff;
+            background-color: #e7f1ff;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .results.grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        .results.list-view {
+            display: block;
+        }
+        .results.list-view .book-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .results.list-view .book-item img {
+            max-width: 80px;
+            margin-right: 15px;
+        }
+        .book-item {
+            text-align: center;
+            cursor: pointer;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+        .book-item img {
+            max-width: 100px;
+            height: auto;
+            border-radius: 4px;
+        }
+        .book-item p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .modal img {
+            max-width: 150px;
+            margin-right: 20px;
+            float: left;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .search-history {
+            margin-top: 20px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .search-history ul {
+            list-style: none;
+            padding: 0;
+        }
+        .search-history li {
+            padding: 5px;
+            cursor: pointer;
+            color: #007bff;
+        }
+        .search-history li:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        .error-message {
+            color: red;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-section" id="searchSection">
+            <h2>Book Search</h2>
+            <div class="tabs">
+                <button id="searchTab" class="active">Search Results</button>
+                <button id="bookshelfTab">My Bookshelf</button>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Enter search terms...">
+                <button id="searchBtn">Search</button>
+            </div>
+            <div class="view-toggle">
+                <button id="gridViewBtn" class="active">Grid View</button>
+                <button id="listViewBtn">List View</button>
+            </div>
+            <div class="results grid-view" id="searchResults"></div>
+            <div class="search-history">
+                <h3>Search History</h3>
+                <button id="clearHistoryBtn">Clear History</button>
+                <ul id="searchHistory"></ul>
+            </div>
+        </div>
+        <div class="bookshelf-section" id="bookshelfSection" style="display: none;">
+            <h2>My Bookshelf</h2>
+            <button id="clearBookshelfBtn">Clear Bookshelf</button>
+            <div class="results grid-view" id="bookshelfResults"></div>
+        </div>
+    </div>
+    <div class="overlay"></div>
+    <div class="modal" id="bookDetails">
+        <h2>Book Details</h2>
+        <div id="bookDetailsContent"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            if (typeof jQuery === 'undefined') {
+                console.error('jQuery failed to load');
+                $('#searchResults').html('<p class="error-message">Error: jQuery failed to load. Please try refreshing the page.</p>');
+                return;
+            }
+
+            const appState = {
+                API_URL: 'https://www.googleapis.com/books/v1/volumes',
+                ITEMS_PER_PAGE: 10,
+                currentSearchTerm: '',
+                currentResults: [],
+                isSearching: false,
+                bookshelf: JSON.parse(localStorage.getItem('bookshelf')) || [
+                    {
+                        id: "book1",
+                        volumeInfo: {
+                            title: "Sample Book 1",
+                            authors: ["Author One"],
+                            imageLinks: { thumbnail: "https://via.placeholder.com/100" },
+                            description: "A sample book for testing the bookshelf.",
+                            publisher: "Sample Publisher",
+                            publishedDate: "2023-01-01",
+                            industryIdentifiers: [{ type: "ISBN_13", identifier: "9781234567890" }],
+                            pageCount: 300,
+                            categories: ["Fiction"],
+                            language: "en",
+                            previewLink: "https://example.com"
+                        }
+                    },
+                    {
+                        id: "book2",
+                        volumeInfo: {
+                            title: "Sample Book 2",
+                            authors: ["Author Two"],
+                            imageLinks: { thumbnail: "https://via.placeholder.com/100" },
+                            description: "Another sample book for testing.",
+                            publisher: "Sample Publisher",
+                            publishedDate: "2023-02-01",
+                            industryIdentifiers: [{ type: "ISBN_13", identifier: "9780987654321" }],
+                            pageCount: 250,
+                            categories: ["Non-Fiction"],
+                            language: "en",
+                            previewLink: "https://example.com"
+                        }
+                    }
+                ],
+                searchHistory: JSON.parse(localStorage.getItem('searchHistory')) || [],
+            };
+            localStorage.setItem('bookshelf', JSON.stringify(appState.bookshelf));
+
+            // Utility to truncate text
+            function truncate(str, maxLength = 100) {
+                return str && str.length > maxLength ? str.substring(0, maxLength) + '...' : str || '';
+            }
+
+            // Render search history
+            function renderSearchHistory() {
+                try {
+                    const $historyList = $('#searchHistory');
+                    $historyList.empty();
+                    if (appState.searchHistory.length === 0) {
+                        $historyList.append('<li>No search history yet.</li>');
+                    } else {
+                        appState.searchHistory.forEach(term => {
+                            $historyList.append(`<li>${term}</li>`);
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error rendering search history:', e);
+                    $('#searchHistory').html('<li>Error loading search history.</li>');
+                }
+            }
+
+            // Update search history
+            function updateSearchHistory(term) {
+                try {
+                    if (term) {
+                        const lowerTerm = term.toLowerCase();
+                        if (!appState.searchHistory.some(t => t.toLowerCase() === lowerTerm)) {
+                            appState.searchHistory.unshift(term);
+                            if (appState.searchHistory.length > 10) appState.searchHistory.pop();
+                            localStorage.setItem('searchHistory', JSON.stringify(appState.searchHistory));
+                            renderSearchHistory();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error updating search history:', e);
+                }
+            }
+
+            // Render search results
+            function renderResults(viewType) {
+                try {
+                    const html = appState.currentResults.map(item => {
+                        if (viewType === 'grid') {
+                            return `
+                                <div class="book-item" data-id="${item.id}">
+                                    <img src="${item.volumeInfo.imageLinks?.thumbnail || 'https://via.placeholder.com/100'}" onerror="this.src='https://via.placeholder.com/100'" alt="${item.volumeInfo.title || 'No Title'}">
+                                    <p>${truncate(item.volumeInfo.title)}</p>
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <div class="book-item" data-id="${item.id}">
+                                    <img src="${item.volumeInfo.imageLinks?.thumbnail || 'https://via.placeholder.com/100'}" onerror="this.src='https://via.placeholder.com/100'" alt="${item.volumeInfo.title || 'No Title'}">
+                                    <div>
+                                        <p><strong>${item.volumeInfo.title || 'No Title'}</strong></p>
+                                        <p>${item.volumeInfo.authors?.join(', ') || 'Unknown Author'}</p>
+                                        <p>${truncate(item.volumeInfo.description)}</p>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }).join('');
+                    $('#searchResults').html(html);
+                } catch (e) {
+                    console.error('Error rendering results:', e);
+                    $('#searchResults').html('<p class="error-message">Error rendering search results.</p>');
+                }
+            }
+
+            // Render bookshelf
+            function renderBookshelf() {
+                try {
+                    let html = '';
+                    if (appState.bookshelf.length === 0) {
+                        html = '<p>Your bookshelf is empty. Add some books!</p>';
+                    } else {
+                        html = appState.bookshelf.map(item => `
+                            <div class="book-item" data-id="${item.id}">
+                                <img src="${item.volumeInfo.imageLinks?.thumbnail || 'https://via.placeholder.com/100'}" onerror="this.src='https://via.placeholder.com/100'" alt="${item.volumeInfo.title || 'No Title'}">
+                                <div>
+                                    <p><strong>${item.volumeInfo.title || 'No Title'}</strong></p>
+                                    <p>${item.volumeInfo.authors?.join(', ') || 'Unknown Author'}</p>
+                                    <button class="remove-from-bookshelf">Remove</button>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    html += `
+                        <button id="backToSearchBtn" style="margin-top: 20px; padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Back to Search</button>
+                    `;
+                    $('#bookshelfResults').html(html);
+                } catch (e) {
+                    console.error('Error rendering bookshelf:', e);
+                    $('#bookshelfResults').html('<p class="error-message">Error rendering bookshelf.</p>');
+                }
+            }
+
+            // Search books
+            function searchBooks() {
+                try {
+                    if (appState.isSearching) {
+                        console.log('Search already in progress, skipping...');
+                        return;
+                    }
+                    const query = $('#searchInput').val().trim();
+                    if (!query) {
+                        $('#searchResults').html('<p class="error-message">Please enter a search term.</p>');
+                        return;
+                    }
+                    appState.isSearching = true;
+                    $('#searchBtn').prop('disabled', true);
+                    $('#searchResults').html('<p class="loading">Loading...</p>');
+                    appState.currentSearchTerm = query;
+                    console.log('Initiating search for:', query, 'URL:', `${appState.API_URL}?q=${encodeURIComponent(query)}&maxResults=${appState.ITEMS_PER_PAGE}`);
+
+                    $.ajax({
+                        url: `${appState.API_URL}?q=${encodeURIComponent(query)}&maxResults=${appState.ITEMS_PER_PAGE}`,
+                        method: 'GET',
+                        dataType: 'json',
+                        success: function(data) {
+                            try {
+                                console.log('Search successful, items received:', data.items ? data.items.length : 0);
+                                if (!data.items || data.items.length === 0) {
+                                    $('#searchResults').html('<p>No results found for your search.</p>');
+                                    appState.currentResults = [];
+                                    updateSearchHistory(query);
+                                    return;
+                                }
+                                appState.currentResults = data.items.map(item => ({
+                                    id: item.id,
+                                    volumeInfo: {
+                                        title: item.volumeInfo.title || "No Title",
+                                        authors: item.volumeInfo.authors || ["Unknown Author"],
+                                        description: item.volumeInfo.description || "No description available",
+                                        imageLinks: item.volumeInfo.imageLinks || {},
+                                        publisher: item.volumeInfo.publisher || "N/A",
+                                        publishedDate: item.volumeInfo.publishedDate || "N/A",
+                                        industryIdentifiers: item.volumeInfo.industryIdentifiers || [],
+                                        pageCount: item.volumeInfo.pageCount || "N/A",
+                                        categories: item.volumeInfo.categories || [],
+                                        language: item.volumeInfo.language || "N/A",
+                                        previewLink: item.volumeInfo.previewLink
+                                    }
+                                }));
+                                renderResults($('.view-toggle button.active').attr('id') === 'gridViewBtn' ? 'grid' : 'list');
+                                updateSearchHistory(query);
+                            } catch (e) {
+                                console.error('Error processing search results:', e);
+                                $('#searchResults').html('<p class="error-message">Error processing search results.</p>');
+                            } finally {
+                                appState.isSearching = false;
+                                $('#searchBtn').prop('disabled', false);
+                            }
+                        },
+                        error: function(jqXHR, textStatus, errorThrown) {
+                            console.error('API request failed:', {
+                                status: jqXHR.status,
+                                statusText: jqXHR.statusText,
+                                textStatus: textStatus,
+                                errorThrown: errorThrown,
+                                responseText: jqXHR.responseText || 'No response text'
+                            });
+                            let errorMsg = 'Error fetching search results. Please try again.';
+                            if (jqXHR.status === 429) {
+                                errorMsg = 'Too many requests. Please wait a moment and try again.';
+                            } else if (jqXHR.status === 0) {
+                                errorMsg = 'Network error. Ensure you are running on a local server (not file://). Try using "live-server" or a similar tool.';
+                            } else if (jqXHR.status === 400) {
+                                errorMsg = 'Invalid search query. Please check your input and try again.';
+                            } else if (jqXHR.status === 403) {
+                                errorMsg = 'Access denied. You may have exceeded API limits or need an API key.';
+                            }
+                            $('#searchResults').html(`<p class="error-message">${errorMsg}</p>`);
+                            appState.isSearching = false;
+                            $('#searchBtn').prop('disabled', false);
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error in searchBooks:', e);
+                    $('#searchResults').html('<p class="error-message">Error performing search.</p>');
+                    appState.isSearching = false;
+                    $('#searchBtn').prop('disabled', false);
+                }
+            }
+
+            // Display book details
+            function displayBookDetails(bookId) {
+                try {
+                    if (!bookId || typeof bookId !== 'string') {
+                        console.error('Invalid book ID:', bookId);
+                        $('#bookDetailsContent').html('<p class="error-message">Error: Invalid book ID.</p>');
+                        $('#bookDetails').show();
+                        $('.overlay').show();
+                        return;
+                    }
+                    console.log('Displaying book details for ID:', bookId, 'URL:', `${appState.API_URL}/${bookId}`);
+                    const book = appState.bookshelf.find(b => b.id === bookId) || appState.currentResults.find(b => b.id === bookId);
+                    if (book) {
+                        const html = `
+                            <div data-id="${book.id}" role="dialog" aria-labelledby="book-details-title">
+                                <h3 id="book-details-title">${book.volumeInfo.title || 'No Title'}</h3>
+                                <img src="${book.volumeInfo.imageLinks?.thumbnail || 'https://via.placeholder.com/150'}" onerror="this.src='https://via.placeholder.com/150'" alt="${book.volumeInfo.title || 'No Title'}">
+                                <p><strong>Author(s):</strong> ${book.volumeInfo.authors?.join(', ') || 'Unknown Author'}</p>
+                                <p><strong>Publisher:</strong> ${book.volumeInfo.publisher || 'N/A'}</p>
+                                <p><strong>Published Date:</strong> ${book.volumeInfo.publishedDate || 'N/A'}</p>
+                                <p><strong>Description:</strong> ${book.volumeInfo.description || 'No description available'}</p>
+                                <p><strong>ISBN:</strong> ${book.volumeInfo.industryIdentifiers?.map(id => id.identifier).join(', ') || 'N/A'}</p>
+                                <p><strong>Page Count:</strong> ${book.volumeInfo.pageCount || 'N/A'}</p>
+                                <p><strong>Categories:</strong> ${book.volumeInfo.categories?.join(', ') || 'N/A'}</p>
+                                <p><strong>Language:</strong> ${book.volumeInfo.language || 'N/A'}</p>
+                                ${book.volumeInfo.previewLink ? `<p><a href="${book.volumeInfo.previewLink}" target="_blank">Preview Book</a></p>` : ''}
+                                <button class="add-to-bookshelf" data-id="${book.id}">Add to Bookshelf</button>
+                                <button class="close-details">Close</button>
+                            </div>
+                        `;
+                        $('#bookDetailsContent').html(html);
+                        $('#bookDetails').show();
+                        $('.overlay').show();
+                    } else {
+                        $.ajax({
+                            url: `${appState.API_URL}/${bookId}`,
+                            method: 'GET',
+                            dataType: 'json',
+                            success: function(data) {
+                                try {
+                                    console.log('Book details fetched successfully for ID:', bookId);
+                                    const book = {
+                                        id: data.id,
+                                        volumeInfo: {
+                                            title: data.volumeInfo.title || "No Title",
+                                            authors: data.volumeInfo.authors || ["Unknown Author"],
+                                            description: data.volumeInfo.description || "No description available",
+                                            imageLinks: data.volumeInfo.imageLinks || {},
+                                            publisher: data.volumeInfo.publisher || "N/A",
+                                            publishedDate: data.volumeInfo.publishedDate || "N/A",
+                                            industryIdentifiers: data.volumeInfo.industryIdentifiers || [],
+                                            pageCount: data.volumeInfo.pageCount || "N/A",
+                                            categories: data.volumeInfo.categories || [],
+                                            language: data.volumeInfo.language || "N/A",
+                                            previewLink: data.volumeInfo.previewLink
+                                        }
+                                    };
+                                    const html = `
+                                        <div data-id="${book.id}" role="dialog" aria-labelledby="book-details-title">
+                                            <h3 id="book-details-title">${book.volumeInfo.title}</h3>
+                                            <img src="${book.volumeInfo.imageLinks?.thumbnail || 'https://via.placeholder.com/150'}" onerror="this.src='https://via.placeholder.com/150'" alt="${book.volumeInfo.title}">
+                                            <p><strong>Author(s):</strong> ${book.volumeInfo.authors.join(', ')}</p>
+                                            <p><strong>Publisher:</strong> ${book.volumeInfo.publisher}</p>
+                                            <p><strong>Published Date:</strong> ${book.volumeInfo.publishedDate}</p>
+                                            <p><strong>Description:</strong> ${book.volumeInfo.description}</p>
+                                            <p><strong>ISBN:</strong> ${book.volumeInfo.industryIdentifiers.map(id => id.identifier).join(', ') || 'N/A'}</p>
+                                            <p><strong>Page Count:</strong> ${book.volumeInfo.pageCount}</p>
+                                            <p><strong>Categories:</strong> ${book.volumeInfo.categories.join(', ') || 'N/A'}</p>
+                                            <p><strong>Language:</strong> ${book.volumeInfo.language}</p>
+                                            ${book.volumeInfo.previewLink ? `<p><a href="${book.volumeInfo.previewLink}" target="_blank">Preview Book</a></p>` : ''}
+                                            <button class="add-to-bookshelf" data-id="${book.id}">Add to Bookshelf</button>
+                                            <button class="close-details">Close</button>
+                                        </div>
+                                    `;
+                                    $('#bookDetailsContent').html(html);
+                                    $('#bookDetails').show();
+                                    $('.overlay').show();
+                                } catch (e) {
+                                    console.error('Error rendering book details:', e);
+                                    $('#bookDetailsContent').html('<p class="error-message">Error rendering book details.</p>');
+                                    $('#bookDetails').show();
+                                    $('.overlay').show();
+                                }
+                            },
+                            error: function(jqXHR, textStatus, errorThrown) {
+                                console.error('Error fetching book details:', {
+                                    bookId: bookId,
+                                    url: `${appState.API_URL}/${bookId}`,
+                                    status: jqXHR.status,
+                                    statusText: jqXHR.statusText,
+                                    textStatus: textStatus,
+                                    errorThrown: errorThrown,
+                                    responseText: jqXHR.responseText || 'No response text'
+                                });
+                                let errorMsg = 'Error fetching book details. Please try again.';
+                                if (jqXHR.status === 429) {
+                                    errorMsg = 'Too many requests. Please wait a moment and try again.';
+                                } else if (jqXHR.status === 0) {
+                                    errorMsg = 'Network error. Ensure you are running on a local server (not file://). Try using "live-server" or a similar tool.';
+                                } else if (jqXHR.status === 404) {
+                                    errorMsg = 'Book not found. The book ID may be invalid.';
+                                } else if (jqXHR.status === 400) {
+                                    errorMsg = 'Invalid request. Please try again.';
+                                } else if (jqXHR.status === 403) {
+                                    errorMsg = 'Access denied. You may have exceeded API limits or need an API key.';
+                                }
+                                $('#bookDetailsContent').html(`<p class="error-message">${errorMsg}</p>`);
+                                $('#bookDetails').show();
+                                $('.overlay').show();
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error in displayBookDetails:', e);
+                    $('#bookDetailsContent').html('<p class="error-message">Error loading book details.</p>');
+                    $('#bookDetails').show();
+                    $('.overlay').show();
+                }
+            }
+
+            // Debounce utility
+            function debounce(func, wait) {
+                let timeout;
+                return function(...args) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), wait);
+                };
+            }
+
+            // Event handlers
+            $('#searchBtn').click(function(e) {
+                e.preventDefault();
+                try {
+                    searchBooks();
+                } catch (e) {
+                    console.error('Error in search button click:', e);
+                }
+            });
+
+            $('#searchInput').keypress(debounce(function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    try {
+                        searchBooks();
+                    } catch (e) {
+                        console.error('Error in search input keypress:', e);
+                    }
+                }
+            }, 300));
+
+            $('#gridViewBtn').click(function() {
+                try {
+                    $('#gridViewBtn').addClass('active');
+                    $('#listViewBtn').removeClass('active');
+                    $('#searchResults').removeClass('list-view').addClass('grid-view');
+                    renderResults('grid');
+                } catch (e) {
+                    console.error('Error switching to grid view:', e);
+                }
+            });
+
+            $('#listViewBtn').click(function() {
+                try {
+                    $('#listViewBtn').addClass('active');
+                    $('#gridViewBtn').removeClass('active');
+                    $('#searchResults').removeClass('grid-view').addClass('list-view');
+                    renderResults('list');
+                } catch (e) {
+                    console.error('Error switching to list view:', e);
+                }
+            });
+
+            $('#searchTab').click(function() {
+                try {
+                    $('#searchTab').addClass('active');
+                    $('#bookshelfTab').removeClass('active');
+                    $('#searchSection').show();
+                    $('#bookshelfSection').hide();
+                } catch (e) {
+                    console.error('Error switching to search tab:', e);
+                }
+            });
+
+            $('#bookshelfTab').click(function() {
+                try {
+                    $('#bookshelfTab').addClass('active');
+                    $('#searchTab').removeClass('active');
+                    $('#searchSection').hide();
+                    $('#bookshelfSection').show();
+                    renderBookshelf();
+                } catch (e) {
+                    console.error('Error switching to bookshelf tab:', e);
+                }
+            });
+
+            $(document).on('click', '.book-item', function() {
+                try {
+                    const bookId = $(this).data('id');
+                    displayBookDetails(bookId);
+                } catch (e) {
+                    console.error('Error in book item click:', e);
+                }
+            });
+
+            $(document).on('click', '.close-details', function() {
+                try {
+                    $('#bookDetails').hide();
+                    $('.overlay').hide();
+                } catch (e) {
+                    console.error('Error closing book details:', e);
+                }
+            });
+
+            $(document).on('click', '.add-to-bookshelf', function() {
+                try {
+                    const bookId = $(this).data('id');
+                    console.log('Attempting to add book to bookshelf:', bookId);
+                    const book = appState.currentResults.find(b => b.id === bookId) || appState.bookshelf.find(b => b.id === bookId);
+                    if (!book) {
+                        console.error('Book not found for ID:', bookId);
+                        $('#bookDetailsContent').html('<p class="error-message">Error: Book not found.</p>');
+                        return;
+                    }
+                    if (!appState.bookshelf.some(b => b.id === bookId)) {
+                        appState.bookshelf.push(book);
+                        localStorage.setItem('bookshelf', JSON.stringify(appState.bookshelf));
+                        console.log('Book added to bookshelf:', bookId);
+                        renderBookshelf();
+                        $('#bookDetails').hide();
+                        $('.overlay').hide();
+                        $('#bookshelfTab').click();
+                    } else {
+                        console.log('Book already in bookshelf:', bookId);
+                        $('#bookDetailsContent').prepend('<p class="error-message">Book already in bookshelf!</p>');
+                        setTimeout(() => $('#bookDetailsContent .error-message').remove(), 2000);
+                    }
+                } catch (e) {
+                    console.error('Error adding to bookshelf:', e);
+                    $('#bookDetailsContent').html('<p class="error-message">Error adding book to bookshelf.</p>');
+                }
+            });
+
+            $(document).on('click', '.remove-from-bookshelf', function() {
+                try {
+                    const bookId = $(this).closest('.book-item').data('id');
+                    appState.bookshelf = appState.bookshelf.filter(b => b.id !== bookId);
+                    localStorage.setItem('bookshelf', JSON.stringify(appState.bookshelf));
+                    renderBookshelf();
+                } catch (e) {
+                    console.error('Error removing from bookshelf:', e);
+                }
+            });
+
+            $(document).on('click', '#searchHistory li', function() {
+                try {
+                    const term = $(this).text();
+                    if (term !== 'No search history yet.') {
+                        $('#searchInput').val(term);
+                        searchBooks();
+                    }
+                } catch (e) {
+                    console.error('Error in search history click:', e);
+                }
+            });
+
+            $(document).on('click', '#clearHistoryBtn', function() {
+                try {
+                    appState.searchHistory = [];
+                    localStorage.setItem('searchHistory', JSON.stringify(appState.searchHistory));
+                    renderSearchHistory();
+                } catch (e) {
+                    console.error('Error clearing search history:', e);
+                }
+            });
+
+            $(document).on('click', '#clearBookshelfBtn', function() {
+                try {
+                    appState.bookshelf = [];
+                    localStorage.setItem('bookshelf', JSON.stringify(appState.bookshelf));
+                    renderBookshelf();
+                } catch (e) {
+                    console.error('Error clearing bookshelf:', e);
+                }
+            });
+
+            $(document).on('click', '#backToSearchBtn', function() {
+                try {
+                    $('#searchTab').click();
+                } catch (e) {
+                    console.error('Error switching to search tab:', e);
+                }
+            });
+
+            $(document).on('keydown', function(e) {
+                try {
+                    if (e.key === 'Escape' && $('#bookDetails').is(':visible')) {
+                        $('#bookDetails').hide();
+                        $('.overlay').hide();
+                    }
+                } catch (e) {
+                    console.error('Error in keydown event:', e);
+                }
+            });
+
+            // Initial render
+            try {
+                renderBookshelf();
+                renderSearchHistory();
+            } catch (e) {
+                console.error('Error in initial render:', e);
+            }
+        });
+    </script>
+</body>
+</html>
